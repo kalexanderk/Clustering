@@ -1,0 +1,283 @@
+```{r}
+library(readr)
+```
+```{r}
+data_initial <- read_csv("Data/data_1.csv")
+View(data_initial)
+```
+```{r}
+data_initial$id <- NULL
+```
+```{r}
+data_initial$diagnosis[data_initial$diagnosis=="M"] <- "Malignant"
+data_initial$diagnosis[data_initial$diagnosis=="B"] <- "Benign"
+as.factor(data_initial$diagnosis)
+```
+```{r}
+str(data_initial[, 2:31])
+```
+```{r}
+data_min_max <- data_initial
+donormit <-function(x) {(x-min(x,na.rm = TRUE))/(max(x,na.rm = TRUE)-min(x, na.rm = TRUE))}
+for (i in seq(2,31)) {data_min_max[,i] <- donormit(data_min_max[,i])}
+View(data_min_max)
+```
+```{r}
+train_ <- data_min_max[1:469, ]
+test_ <- data_min_max[470:569,]
+```
+```{r}
+library(class)
+```
+```{r}
+k <- round(sqrt(nrow(train_)))
+labels_train <- train_[,1]
+labels_test <- test_[,1]
+knn_min_max <- knn(train_[2:31], test_[2:31], as.vector(t(labels_train)), k, prob=TRUE)
+#build confusion matrix
+conf_m_min_max <- table(knn_min_max=="Malignant", t(labels_test))
+accuracy_min_max <- (conf_m_min_max[1,1]+conf_m_min_max[2,2])/sum(conf_m_min_max)
+#accuracy = 0.98
+```
+
+```{r}
+data_zscore <- data_initial
+for (i in seq(2,31)) {data_zscore[,i] <- scale(data_zscore[,i])}
+View(data_zscore)
+```
+```{r}
+train__ <- data_zscore[1:469, ]
+test__ <- data_zscore[470:569,]
+```
+```{r}
+k_ <- round(sqrt(nrow(train__)))
+labels_train_ <- train__[,1]
+labels_test_ <- test__[,1]
+knn_zscore <- knn(train__[2:31], test__[2:31], as.vector(t(labels_train_)), k_, prob=TRUE)
+#build confusion matrix
+conf_m_zscore <- table(knn_zscore=="Malignant", t(labels_test_))
+accuracy_zscore <- (conf_m_zscore[1,1]+conf_m_zscore[2,2])/sum(conf_m_zscore)
+#accuracy = 0.97
+```
+
+
+#-------------------------TASK_2-------------------------
+
+
+```{r}
+library(rattle)
+library(rattle.data)
+library(utils)
+data() 
+try(data(package = "rattle.data") )
+data_wine <- rattle.data::wine
+View(data_wine)
+```
+```{r}
+str(data_wine)
+data_wine_sc <- data_wine
+for (i in seq(2,14)) {data_wine_sc[,i] <- scale(data_wine_sc[,i])}
+View(data_wine_sc)
+str(data_wine_sc)
+```
+```{r}
+kmeans_model <- kmeans(data_wine_sc[,2:14], centers = 4)
+```
+```{r}
+print(kmeans_model$centers)
+print(kmeans_model$cluster)
+print(kmeans_model$totss)
+print(kmeans_model$withinss)
+print(kmeans_model$tot.withinss)
+print(kmeans_model$betweenss)
+print(kmeans_model$size)
+```
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+wss <- (nrow(data)-1)*sum(apply(data,2,var))
+for (i in 2:nc){
+set.seed(seed)
+wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+plot(1:nc, wss, type="b", xlab="Number of Clusters",
+ylab="Within groups sum of squares")}
+```
+```{r}
+wssplot(data_wine_sc[,2:14])
+```
+
+#rebuilding the model with k=3 (centers=3)
+
+```{r}
+kmeans_model <- kmeans(data_wine_sc[,2:14], centers = 3)
+```
+```{r}
+print(kmeans_model$centers)
+print(kmeans_model$cluster)
+print(kmeans_model$totss)
+print(kmeans_model$withinss)
+print(kmeans_model$tot.withinss)
+print(kmeans_model$betweenss)
+print(kmeans_model$size)
+```
+
+```{r}
+library(cluster)
+clusplot(data_wine_sc[,2:14], clus = kmeans_model$cluster)
+#projections on 2 first PC's
+```
+
+
+```{r}
+library(caret)
+kmeans_clusters <- kmeans_model$cluster
+kmeans_clusters
+where_1 <- kmeans_clusters==1
+where_3 <- kmeans_clusters==3
+kmeans_clusters[where_1] <- 3
+kmeans_clusters[where_3] <- 1
+confusionMatrix(kmeans_clusters, t(data_wine_sc[,1]))
+conf_m_kmeans <- table(kmeans_clusters, t(data_wine_sc[,1]))
+accuracy_kmeans <- (conf_m_kmeans[1,1]+conf_m_kmeans[2,2]+conf_m_kmeans[3,3])/sum(conf_m_kmeans)
+#accuracy ~ 0.97
+```
+
+#-------calculating distances and perf clusterization based on distances
+
+```{r}
+dist(t(data_wine_sc), method = "euclidean", diag=TRUE)
+```
+```{r}
+nrow(data_wine_sc)
+distances <- dist(data_wine_sc[,2:14], method = "euclidean", diag=FALSE, upper = TRUE)
+distances
+```
+```{r}
+hier_cluster_wine <- hclust(distances, method="ward.D")
+plot(hier_cluster_wine)
+```
+```{r}
+library(stats)
+hier_cluster_wine_cut <- cutree(hier_cluster_wine, k=3)
+plot(hier_cluster_wine_cut)
+```
+```{r}
+conf_m_cluster_cut <- table(hier_cluster_wine_cut, t(data_wine_sc[,1]))
+conf_m_cluster_cut
+```
+```{r}
+accuracy_cut <- (conf_m_cluster_cut[1,1]+conf_m_cluster_cut[2,2]+conf_m_cluster_cut[3,3])/sum(conf_m_cluster_cut)
+#accuracy ~0.92
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#-------------------------TASK_3-------------------------
+
+```{r}
+gifts <- read_csv("Data/gifts.csv")
+```
+```{r}
+View(gifts)
+```
+```{r}
+#deleting extra "giftID" & Weight
+gifts$GiftId <- NULL
+gifts$Weight <-NULL
+```
+
+```{r}
+#Probably we don't need this stage in this defnite task
+#gifts_sc <- gifts
+#for (i in seq(1,3)) {gifts_sc[,i] <- scale(gifts_sc[,i])}
+#str(gifts_sc)
+
+```
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+wss <- (nrow(data)-1)*sum(apply(data,2,var))
+for (i in 2:nc){
+set.seed(seed)
+wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+plot(1:nc, wss, type="b", xlab="Number of Clusters",
+ylab="Within groups sum of squares")}
+```
+```{r}
+wssplot(gifts)
+```
+
+```{r}
+#k=5
+gifts_kmeans <- kmeans(gifts, centers = 5)
+```
+```{r}
+print(gifts_kmeans$centers)
+print(gifts_kmeans$cluster)
+print(gifts_kmeans$totss)
+print(gifts_kmeans$withinss)
+print(gifts_kmeans$tot.withinss)
+print(gifts_kmeans$betweenss)
+print(gifts_kmeans$size)
+```
+
+```{r}
+#we have 5 clusters
+gifts_clustered <- cbind(gifts, gifts_kmeans$cluster)
+View(gifts_clustered)
+colnames(gifts_clustered)<-c(colnames(gifts), "Cluster")
+str(gifts_clustered)
+```
+
+#let's visualize what we've got
+```{r}
+library(RgoogleMaps)
+```
+```{r}
+map <- GetMap(center=c(lat=0,lon=0), zoom=1, size=c(480,480),maptype="roadmap", SCALE = 1, destfile = "world.png")
+par(cex=1)
+
+#gifts_clustered_1 <- gifts_clustered
+#gifts_clustered_1[,3] <- gifts_clustered_1[,3]-1
+#bubbleMap(gifts_clustered_1[1:1000,], coords = c("Longitude","Latitude"), map=map, zcol='Cluster', key.entries = c(1,2,3,4,5), do.sqrt = TRUE);
+
+
+```
+
+```{r}
+plotmap(gifts_clustered[1:1000,1], gifts_clustered[1:1000,2], map=map, col=as.factor(gifts_clustered[1:1000,3]), pch=16)
+```
+
+#route
+```{r}
+dest_lat <- gifts_clustered$Latitude[1:100]
+dest_long <- gifts_clustered$Longitude[1:100]
+orig_lat <- rep(90.0, 100)
+orig_long <- rep(0, 100)
+map_pole <- data.frame(orig_lat, orig_long, dest_lat, dest_long)
+```
+
+```{r}
+library(threejs)
+earth <- system.file("images/world.jpg",  package = "threejs")
+Santa_route <- globejs(img=earth, lat = gifts_clustered$Latitude[1:100], 
+        long = gifts_clustered$Longitude[1:100],
+        arcsHeight=0.3, arcsLwd=3, arcsColor="white", arcsOpacity=0.15,
+        atmosphere=TRUE, arcs = map_pole, height=400, value=4, bg="gray")
+Santa_route
+earth_1 <- "http://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg"
+Santa_route_1 <- globejs(img=earth_1, lat = gifts_clustered$Latitude[1:100], 
+        long = gifts_clustered$Longitude[1:100],
+        arcsHeight=0.3, arcsLwd=3, arcsColor="white", arcsOpacity=0.15,
+        atmosphere=TRUE, arcs = map_pole, height=400, value=4, bg="gray")
+Santa_route_1
+```
